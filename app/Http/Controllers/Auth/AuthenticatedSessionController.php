@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -16,10 +17,15 @@ class AuthenticatedSessionController extends Controller
     public function store(LoginRequest $request): Response
     {
         $request->authenticate();
+        $user = User::where('email',$request->email)->first();
+        if($user->tokens->count() > 0) {
+            $user->tokens()->delete();
+        }
 
-        $request->session()->regenerate();
-
-        return response()->noContent();
+        return response(array(
+            'token' => $user->createToken('access-token')->plainTextToken
+        ),200);
+        ##TODO: add token access via role
     }
 
     /**
@@ -27,11 +33,7 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): Response
     {
-        Auth::guard('web')->logout();
-
-        $request->session()->invalidate();
-
-        $request->session()->regenerateToken();
+        $request->user()->currentAccessToken()->delete();
 
         return response()->noContent();
     }
